@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Besucher-Budget-Rechner</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF + autoTable for PDF export -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Besucher-Budget-Rechner</h1>
+    <p>Planen Sie Ihre erwarteten Besucherzahlen pro Tag für ein komplettes Kalenderjahr</p>
+  </header>
+
+  <main>
+    <section class="input-form">
+      <h2>Konfiguration</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="year">Kalenderjahr</label>
+          <select id="year"></select>
+        </div>
+        <div class="form-field">
+          <label for="state">Bundesland</label>
+          <select id="state">
+            <option value="">-- bitte wählen --</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="maxVisitors">Max. Besucher pro Tag</label>
+          <input type="number" id="maxVisitors" min="0" step="1" value="1000" />
+        </div>
+        <div class="form-field">
+          <button id="generateBtn" type="button">OK &mdash; Tabelle erstellen</button>
+        </div>
+      </div>
+      <div id="infoMsg" class="info-msg"></div>
+    </section>
+
+    <section id="results" class="hidden">
+      <div class="summary-bar">
+        <div class="summary-card">
+          <div class="label">Jahresbudget (Besucher)</div>
+          <div id="yearTotal" class="value">0</div>
+        </div>
+        <div class="summary-card secondary">
+          <div class="label">&Oslash; pro Tag</div>
+          <div id="avgPerDay" class="value">0</div>
+        </div>
+        <div class="summary-card secondary">
+          <div class="label">&Oslash; pro Monat</div>
+          <div id="avgPerMonth" class="value">0</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Tage nach Auslastung</h3>
+          <div class="counts-grid" id="countsGrid"></div>
+        </div>
+        <div class="card">
+          <h3>Monatsbudget</h3>
+          <div class="monthly-grid" id="monthlyGrid"></div>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <div class="actions">
+          <button id="exportExcelBtn" type="button" class="btn-success">Als Excel exportieren</button>
+          <button id="exportPdfBtn" type="button" class="btn-success">Als PDF exportieren</button>
+          <button id="resetBtn" type="button" class="btn-secondary">Zurücksetzen</button>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-swatch sw-weekend"></span>Wochenende</span>
+          <span class="legend-item"><span class="legend-swatch sw-holiday"></span>Feiertag</span>
+          <span class="legend-item"><span class="legend-swatch sw-school"></span>Schulferien</span>
+        </div>
+      </div>
+
+      <div class="card table-card">
+        <h3>Tagesübersicht</h3>
+        <div class="table-wrapper">
+          <table id="dayTable">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Wochentag</th>
+                <th>Feiertag / Ferien</th>
+                <th>Auslastung</th>
+                <th>Besucher</th>
+                <th>Notizen</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Besucher-Budget-Rechner &mdash; Daten werden im lokalen Browser gespeichert.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
