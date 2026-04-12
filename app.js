@@ -288,39 +288,111 @@ function loadRows(){try{var raw=localStorage.getItem(rKey());if(!raw)return;var 
 function saveGlobal(){try{localStorage.setItem('vb:cfg',JSON.stringify({mv:S.maxV,tpl:S.tpl,tplF:S.tplF}));}catch(e){}}
 function loadGlobal(){try{var raw=localStorage.getItem('vb:cfg');if(!raw)return;var c=JSON.parse(raw);if(c.mv)document.getElementById('maxVisitors').value=c.mv;if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});}catch(e){}}
 
-/* excel */
-function toExcel(){
-  if(!S.rows.length)return;var wb=XLSX.utils.book_new();
+/* export helpers */
+async function withLoading(btn,label,fn){
+  var orig=btn.innerHTML;btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>'+label;
+  try{await fn();}
+  catch(e){console.error(e);alert('Export fehlgeschlagen: '+(e&&e.message?e.message:e));}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
+}
+
+async function saveBlob(blob,filename,desc,mime,ext){
+  if(window.showSaveFilePicker){
+    try{
+      var accept={};accept[mime]=ext;
+      var opts={suggestedName:filename,types:[{description:desc,accept:accept}]};
+      var handle=await window.showSaveFilePicker(opts);
+      var w=await handle.createWritable();await w.write(blob);await w.close();return true;
+    }catch(e){if(e&&e.name==='AbortError')return false;}
+  }
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  return true;
+}
+
+/* excel: single sheet with full day table */
+async function toExcel(){
+  if(!S.rows.length)return;
+  var wb=XLSX.utils.book_new();
   var hdr=['Datum','Wochentag','Feiertag','Schulferien','Auslastung','Auslastung %','Besucher','Notizen'];
   var data=S.rows.map(function(r){return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],r.ph,r.sh,r.occ,occPct(r.occ),calcV(r),r.notes];});
   var ws=XLSX.utils.aoa_to_sheet([hdr].concat(data));
   ws['!cols']=[{wch:12},{wch:12},{wch:26},{wch:26},{wch:10},{wch:12},{wch:12},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws,'Tagesdaten');
-  var yt=0;S.rows.forEach(function(r){yt+=calcV(r);});
-  var sum=[['Kennzahl','Wert'],['Jahr',S.year],['Bundesland',BUNDESLAENDER[S.sc]],['Max/Tag',S.maxV],['Jahresbudget',yt],[]];
-  sum.push(['Monat','Besucher']);
-  for(var i=0;i<12;i++){var s=0;S.rows.forEach(function(r){if(r.date.getMonth()===i)s+=calcV(r);});sum.push([MONTHS_DE[i],s]);}
-  sum.push(['Gesamt',yt],[],['Auslastung','%','Tage']);
-  OCCUPANCY_OPTIONS.forEach(function(o){var c=0;S.rows.forEach(function(r){if(r.occ===o.value)c++;});sum.push([o.label,o.percent+'%',c]);});
-  var ws2=XLSX.utils.aoa_to_sheet(sum);ws2['!cols']=[{wch:24},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb,ws2,'Zusammenfassung');
-  XLSX.writeFile(wb,'Besucher-Budget_'+S.year+'_'+S.sc+'.xlsx');
+  var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  await saveBlob(blob,'Besucher-Budget_'+S.year+'_'+S.sc+'.xlsx','Excel-Datei','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',['.xlsx']);
 }
 
-/* pdf */
-function toPdf(){
+/* pdf: summary header on page 1, then day table */
+async function toPdf(){
   if(!S.rows.length)return;
   var jsPDF=window.jspdf.jsPDF;var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   var yt=0;S.rows.forEach(function(r){yt+=calcV(r);});
+  var open=S.rows.filter(function(r){return occPct(r.occ)>0;}).length;
+  var avgD=open>0?Math.round(yt/open):0;
+  var avgM=Math.round(yt/12);
+  var sDays=0;
+  if(S.sS||S.sE){S.rows.forEach(function(r){var a=!S.sS||r.date>=S.sS,b=!S.sE||r.date<=S.sE;if(a&&b)sDays++;});}
+  else{sDays=S.rows.length;}
+
+  /* header */
   doc.setFontSize(16);doc.setTextColor(63,81,181);
-  doc.text('Besucher-Budget '+S.year+' - '+BUNDESLAENDER[S.sc],14,15);
-  doc.setFontSize(10);doc.setTextColor(40,40,40);
-  doc.text('Jahresbudget: '+yt.toLocaleString('de-DE')+' | Max/Tag: '+S.maxV.toLocaleString('de-DE'),14,22);
+  doc.text('Besucher-Budget '+S.year+' - '+BUNDESLAENDER[S.sc],14,14);
+  doc.setFontSize(9);doc.setTextColor(80,80,80);
+  doc.text('Max. Besucher/Tag: '+S.maxV.toLocaleString('de-DE')
+    +'   |   Saison: '+(S.sS?fmtDE(S.sS):'ganzjährig')+' – '+(S.sE?fmtDE(S.sE):'ganzjährig')
+    +'   |   Saisontage: '+sDays.toLocaleString('de-DE'),14,20);
+
+  /* KPI strip */
+  var kpis=[
+    ['Jahresbudget',yt.toLocaleString('de-DE')],
+    ['Ø pro Tag (offen)',avgD.toLocaleString('de-DE')],
+    ['Ø pro Monat',avgM.toLocaleString('de-DE')],
+    ['Saisontage',sDays.toLocaleString('de-DE')]
+  ];
+  doc.autoTable({
+    body:kpis.map(function(k){return [k[0],k[1]];}),
+    startY:24,margin:{left:14,right:14},
+    styles:{fontSize:10,cellPadding:2},
+    columnStyles:{0:{fontStyle:'bold',fillColor:[232,234,246],textColor:[48,63,159],cellWidth:60},1:{halign:'right',fontStyle:'bold'}},
+    theme:'grid'
+  });
+  var y1=doc.lastAutoTable.finalY+4;
+
+  /* monthly + counts side by side */
+  var mr=[];for(var i=0;i<12;i++){var s=0;S.rows.forEach(function(r){if(r.date.getMonth()===i)s+=calcV(r);});mr.push([MONTHS_DE[i],s.toLocaleString('de-DE')]);}
+  mr.push([{content:'Gesamt',styles:{fontStyle:'bold',fillColor:[232,234,246]}},{content:yt.toLocaleString('de-DE'),styles:{fontStyle:'bold',halign:'right',fillColor:[232,234,246]}}]);
+  doc.autoTable({
+    head:[['Monat','Besucher']],body:mr,
+    startY:y1,margin:{left:14},tableWidth:120,
+    styles:{fontSize:8,cellPadding:1.5},
+    headStyles:{fillColor:[63,81,181],textColor:255},
+    columnStyles:{1:{halign:'right'}}
+  });
+
+  var cr=[];OCCUPANCY_OPTIONS.forEach(function(o){var c=0;S.rows.forEach(function(r){if(r.occ===o.value)c++;});cr.push([o.label,o.percent+'%',c.toLocaleString('de-DE')]);});
+  doc.autoTable({
+    head:[['Auslastung','%','Tage']],body:cr,
+    startY:y1,margin:{left:140},tableWidth:140,
+    styles:{fontSize:8,cellPadding:1.5},
+    headStyles:{fillColor:[63,81,181],textColor:255},
+    columnStyles:{1:{halign:'right'},2:{halign:'right'}}
+  });
+
+  var y2=Math.max(doc.lastAutoTable.finalY,y1)+6;
+
+  /* day table */
+  doc.setFontSize(12);doc.setTextColor(63,81,181);
+  doc.text('Tagesübersicht',14,y2);
   var body=S.rows.map(function(r){
     var h=[];if(r.ph)h.push(r.ph);if(r.sh)h.push('Ferien: '+r.sh);
     return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes];
   });
-  doc.autoTable({head:[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']],body:body,startY:27,
+  doc.autoTable({head:[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']],body:body,startY:y2+3,
     styles:{fontSize:7,cellPadding:1.2,overflow:'linebreak'},headStyles:{fillColor:[63,81,181],textColor:255,fontStyle:'bold'},
     alternateRowStyles:{fillColor:[244,246,250]},
     columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:70},3:{cellWidth:28},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}},
@@ -329,13 +401,9 @@ function toPdf(){
       else if(r.sh)data.cell.styles.fillColor=[254,243,199];
       else if(r.date.getDay()===0||r.date.getDay()===6)data.cell.styles.fillColor=[255,247,237];}
   });
-  doc.addPage();doc.setFontSize(16);doc.setTextColor(63,81,181);doc.text('Zusammenfassung',14,15);
-  var mr=[];for(var i=0;i<12;i++){var s=0;S.rows.forEach(function(r){if(r.date.getMonth()===i)s+=calcV(r);});mr.push([MONTHS_DE[i],s.toLocaleString('de-DE')]);}
-  mr.push(['Gesamt',yt.toLocaleString('de-DE')]);
-  doc.autoTable({head:[['Monat','Besucher']],body:mr,startY:22,tableWidth:90,margin:{left:14},styles:{fontSize:10},headStyles:{fillColor:[63,81,181],textColor:255},columnStyles:{1:{halign:'right'}}});
-  var cr=[];OCCUPANCY_OPTIONS.forEach(function(o){var c=0;S.rows.forEach(function(r){if(r.occ===o.value)c++;});cr.push([o.label,o.percent+'%',c]);});
-  doc.autoTable({head:[['Auslastung','%','Tage']],body:cr,startY:22,margin:{left:120},tableWidth:100,styles:{fontSize:10},headStyles:{fillColor:[63,81,181],textColor:255},columnStyles:{2:{halign:'right'}}});
-  doc.save('Besucher-Budget_'+S.year+'_'+S.sc+'.pdf');
+
+  var blob=doc.output('blob');
+  await saveBlob(blob,'Besucher-Budget_'+S.year+'_'+S.sc+'.pdf','PDF-Datei','application/pdf',['.pdf']);
 }
 
 /* init */
@@ -371,8 +439,8 @@ function init(){
     var v=parseInt(e.target.value,10)||0;
     if(S.rows.length>0&&v>0){S.maxV=v;saveRows();updVC();renderSummary();}
   });
-  document.getElementById('exportExcelBtn').addEventListener('click',toExcel);
-  document.getElementById('exportPdfBtn').addEventListener('click',toPdf);
+  document.getElementById('exportExcelBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Exportiere…',toExcel);});
+  document.getElementById('exportPdfBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Exportiere…',toPdf);});
   document.getElementById('reapplyTemplateBtn').addEventListener('click',reapply);
   document.getElementById('resetBtn').addEventListener('click',resetAll);
 }
