@@ -433,21 +433,48 @@ async function toPdf(){
 
   var y2=Math.max(doc.lastAutoTable.finalY,y1)+6;
 
-  /* day table */
-  doc.setFontSize(12);doc.setTextColor(63,81,181);
-  doc.text('Tagesübersicht',14,y2);
-  var body=S.rows.map(function(r){
+  /* day table on its own page(s), starting from page 2 */
+  doc.addPage();
+  doc.setFontSize(14);doc.setTextColor(63,81,181);
+  doc.text('Tagesübersicht '+S.year+' – '+BUNDESLAENDER[S.sc],14,14);
+
+  /* precompute monthly totals for month-header rows */
+  var monthlyTotals=Array(12).fill(0);
+  S.rows.forEach(function(r){monthlyTotals[r.date.getMonth()]+=calcV(r);});
+
+  /* build body with interleaved month-header rows */
+  var body=[];
+  var rowMeta=[]; /* parallel array: null = month-header, otherwise S.rows index */
+  var curMonth=-1;
+  S.rows.forEach(function(r,idx){
+    var m=r.date.getMonth();
+    if(m!==curMonth){
+      curMonth=m;
+      body.push([{
+        content:MONTHS_DE[m]+' '+S.year+'  —  Monatsbudget: '+monthlyTotals[m].toLocaleString('de-DE')+' Besucher',
+        colSpan:6,
+        styles:{fillColor:[48,63,159],textColor:255,fontStyle:'bold',fontSize:8,halign:'left',cellPadding:{top:2,bottom:2,left:3,right:3}}
+      }]);
+      rowMeta.push(null);
+    }
     var h=[];if(r.ph)h.push(r.ph);if(r.sh)h.push('Ferien: '+r.sh);
-    return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes];
+    body.push([fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes]);
+    rowMeta.push(idx);
   });
-  doc.autoTable({head:[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']],body:body,startY:y2+3,
+
+  doc.autoTable({head:[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']],body:body,startY:20,
     styles:{fontSize:7,cellPadding:1.2,overflow:'linebreak'},headStyles:{fillColor:[63,81,181],textColor:255,fontStyle:'bold'},
     alternateRowStyles:{fillColor:[244,246,250]},
     columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:70},3:{cellWidth:28},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}},
-    didParseCell:function(data){if(data.section!=='body')return;var r=S.rows[data.row.index];if(!r)return;
+    didParseCell:function(data){
+      if(data.section!=='body')return;
+      var meta=rowMeta[data.row.index];
+      if(meta===null||meta===undefined)return; /* month-header row keeps its styles */
+      var r=S.rows[meta];if(!r)return;
       if(r.ph)data.cell.styles.fillColor=[254,226,226];
       else if(r.sh)data.cell.styles.fillColor=[254,243,199];
-      else if(r.date.getDay()===0||r.date.getDay()===6)data.cell.styles.fillColor=[255,247,237];}
+      else if(r.date.getDay()===0||r.date.getDay()===6)data.cell.styles.fillColor=[255,247,237];
+    }
   });
 
   var blob=doc.output('blob');
