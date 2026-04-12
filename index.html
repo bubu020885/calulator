@@ -49,13 +49,22 @@
       </div>
 
       <fieldset class="template-week">
-        <legend>Musterwoche</legend>
+        <legend>Musterwoche &mdash; Normalbetrieb</legend>
         <p class="hint">
-          Standard-Auslastung pro Wochentag. Innerhalb der Saison wird dieser Wert verwendet
-          und durch Feiertage (&uarr;&uarr;) bzw. Schulferien (&uarr;) automatisch aufgewertet.
+          Standard-Auslastung pro Wochentag innerhalb der Saison.
+          Feiertage werten dieses Muster zus&auml;tzlich um 2 Stufen auf.
           Au&szlig;erhalb der Saison sind alle Tage <strong>Off</strong>.
         </p>
         <div class="template-grid" id="templateGrid"></div>
+      </fieldset>
+
+      <fieldset class="template-week template-week-ferien">
+        <legend>Musterwoche &mdash; Ferien</legend>
+        <p class="hint">
+          Dieses Muster wird in Schulferien-Zeitr&auml;umen anstelle des Normalbetriebs verwendet.
+          Feiertage werten auch hier um 2 Stufen auf.
+        </p>
+        <div class="template-grid" id="templateGridFerien"></div>
       </fieldset>
 
       <div class="form-actions">
@@ -77,6 +86,10 @@
         <div class="summary-card secondary">
           <div class="label">&Oslash; pro Monat</div>
           <div id="avgPerMonth" class="value">0</div>
+        </div>
+        <div class="summary-card secondary">
+          <div class="label">Saisontage</div>
+          <div id="seasonDays" class="value">0</div>
         </div>
       </div>
 

@@ -125,6 +125,15 @@ section h2 {
   font-size: 0.95rem;
 }
 
+.template-week-ferien {
+  background: #fffbeb;
+  border-color: #fbbf24;
+}
+
+.template-week-ferien legend {
+  color: #b45309;
+}
+
 .template-week .hint {
   font-size: 0.82rem;
   color: var(--text-muted);
@@ -263,7 +272,7 @@ button:disabled {
 /* Summary */
 .summary-bar {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -307,9 +316,22 @@ button:disabled {
 }
 
 .counts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+
+.counts-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.count-item.count-season {
+  border-left: 4px solid var(--primary);
+}
+.count-season .count-value {
+  color: var(--primary);
 }
 
 .count-item {
