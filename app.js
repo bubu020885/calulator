@@ -289,6 +289,52 @@ function saveGlobal(){try{localStorage.setItem('vb:cfg',JSON.stringify({mv:S.max
 function loadGlobal(){try{var raw=localStorage.getItem('vb:cfg');if(!raw)return;var c=JSON.parse(raw);if(c.mv)document.getElementById('maxVisitors').value=c.mv;if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});}catch(e){}}
 
 /* export helpers */
+function loadScript(url){
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');s.src=url;s.async=true;
+    s.onload=function(){res();};
+    s.onerror=function(){rej(new Error('Script konnte nicht geladen werden: '+url));};
+    document.head.appendChild(s);
+  });
+}
+async function loadFirstAvailable(urls){
+  var last=null;
+  for(var i=0;i<urls.length;i++){
+    try{await loadScript(urls[i]);return;}catch(e){last=e;}
+  }
+  throw last||new Error('Keine Quelle erreichbar');
+}
+async function ensureXLSX(){
+  if(window.XLSX)return;
+  await loadFirstAvailable([
+    'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ]);
+  if(!window.XLSX)throw new Error('XLSX-Bibliothek nicht verfügbar. Bitte Internetverbindung prüfen.');
+}
+async function ensurePDF(){
+  if(!window.jspdf||!window.jspdf.jsPDF){
+    await loadFirstAvailable([
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+      'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js'
+    ]);
+  }
+  if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('jsPDF-Bibliothek nicht verfügbar. Bitte Internetverbindung prüfen.');
+  /* autotable attaches to jsPDF prototype; detect by probing prototype */
+  var proto=window.jspdf.jsPDF.API||window.jspdf.jsPDF.prototype;
+  if(!proto||typeof proto.autoTable!=='function'){
+    await loadFirstAvailable([
+      'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js',
+      'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
+    ]);
+    proto=window.jspdf.jsPDF.API||window.jspdf.jsPDF.prototype;
+    if(!proto||typeof proto.autoTable!=='function')throw new Error('jsPDF-AutoTable nicht verfügbar.');
+  }
+}
+
 async function withLoading(btn,label,fn){
   var orig=btn.innerHTML;btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span>'+label;
@@ -316,6 +362,7 @@ async function saveBlob(blob,filename,desc,mime,ext){
 /* excel: single sheet with full day table */
 async function toExcel(){
   if(!S.rows.length)return;
+  await ensureXLSX();
   var wb=XLSX.utils.book_new();
   var hdr=['Datum','Wochentag','Feiertag','Schulferien','Auslastung','Auslastung %','Besucher','Notizen'];
   var data=S.rows.map(function(r){return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],r.ph,r.sh,r.occ,occPct(r.occ),calcV(r),r.notes];});
@@ -330,6 +377,7 @@ async function toExcel(){
 /* pdf: summary header on page 1, then day table */
 async function toPdf(){
   if(!S.rows.length)return;
+  await ensurePDF();
   var jsPDF=window.jspdf.jsPDF;var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   var yt=0;S.rows.forEach(function(r){yt+=calcV(r);});
   var open=S.rows.filter(function(r){return occPct(r.occ)>0;}).length;
