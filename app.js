@@ -108,7 +108,7 @@ function computeOcc(row,tpl,tplF,sS,sE){
 
 /* state */
 var S={year:null,sc:null,maxV:0,tpl:[],tplF:[],sS:null,sE:null,rows:[]};
-function calcV(r){return Math.round(S.maxV*occPct(r.occupancy)/100);}
+function calcV(r){return Math.round(S.maxV*occPct(r.occ)/100);}
 
 /* generate */
 async function generate(){
