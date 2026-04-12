@@ -433,49 +433,58 @@ async function toPdf(){
 
   var y2=Math.max(doc.lastAutoTable.finalY,y1)+6;
 
-  /* day table on its own page(s), starting from page 2 */
-  doc.addPage();
-  doc.setFontSize(14);doc.setTextColor(63,81,181);
-  doc.text('Tagesübersicht '+S.year+' – '+BUNDESLAENDER[S.sc],14,14);
-
+  /* day table: one month per page, starting from page 2 */
   /* precompute monthly totals for month-header rows */
   var monthlyTotals=Array(12).fill(0);
   S.rows.forEach(function(r){monthlyTotals[r.date.getMonth()]+=calcV(r);});
 
-  /* build body with interleaved month-header rows */
-  var body=[];
-  var rowMeta=[]; /* parallel array: null = month-header, otherwise S.rows index */
-  var curMonth=-1;
-  S.rows.forEach(function(r,idx){
-    var m=r.date.getMonth();
-    if(m!==curMonth){
-      curMonth=m;
-      body.push([{
-        content:MONTHS_DE[m]+' '+S.year+'  —  Monatsbudget: '+monthlyTotals[m].toLocaleString('de-DE')+' Besucher',
-        colSpan:6,
-        styles:{fillColor:[48,63,159],textColor:255,fontStyle:'bold',fontSize:8,halign:'left',cellPadding:{top:2,bottom:2,left:3,right:3}}
-      }]);
-      rowMeta.push(null);
-    }
-    var h=[];if(r.ph)h.push(r.ph);if(r.sh)h.push('Ferien: '+r.sh);
-    body.push([fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes]);
-    rowMeta.push(idx);
-  });
+  /* group row indices by month */
+  var idxByMonth=[];
+  for(var mm=0;mm<12;mm++)idxByMonth.push([]);
+  S.rows.forEach(function(r,idx){idxByMonth[r.date.getMonth()].push(idx);});
 
-  doc.autoTable({head:[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']],body:body,startY:20,
-    styles:{fontSize:7,cellPadding:1.2,overflow:'linebreak'},headStyles:{fillColor:[63,81,181],textColor:255,fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[244,246,250]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:70},3:{cellWidth:28},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}},
-    didParseCell:function(data){
+  var headCols=[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']];
+  var colStyles={0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:70},3:{cellWidth:28},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}};
+
+  function makeParser(meta){
+    return function(data){
       if(data.section!=='body')return;
-      var meta=rowMeta[data.row.index];
-      if(meta===null||meta===undefined)return; /* month-header row keeps its styles */
-      var r=S.rows[meta];if(!r)return;
+      var m=meta[data.row.index];
+      if(m===null||m===undefined)return;
+      var r=S.rows[m];if(!r)return;
       if(r.ph)data.cell.styles.fillColor=[254,226,226];
       else if(r.sh)data.cell.styles.fillColor=[254,243,199];
       else if(r.date.getDay()===0||r.date.getDay()===6)data.cell.styles.fillColor=[255,247,237];
-    }
-  });
+    };
+  }
+
+  for(var mi=0;mi<12;mi++){
+    var idxs=idxByMonth[mi];if(!idxs.length)continue;
+    doc.addPage();
+
+    var body=[];var rowMeta=[];
+    body.push([{
+      content:MONTHS_DE[mi]+' '+S.year+'  —  Monatsbudget: '+monthlyTotals[mi].toLocaleString('de-DE')+' Besucher',
+      colSpan:6,
+      styles:{fillColor:[48,63,159],textColor:255,fontStyle:'bold',fontSize:10,halign:'left',cellPadding:{top:3,bottom:3,left:4,right:4}}
+    }]);
+    rowMeta.push(null);
+    idxs.forEach(function(idx){
+      var r=S.rows[idx];
+      var h=[];if(r.ph)h.push(r.ph);if(r.sh)h.push('Ferien: '+r.sh);
+      body.push([fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes]);
+      rowMeta.push(idx);
+    });
+
+    doc.autoTable({
+      head:headCols,body:body,startY:14,
+      styles:{fontSize:8,cellPadding:1.4,overflow:'linebreak'},
+      headStyles:{fillColor:[63,81,181],textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[244,246,250]},
+      columnStyles:colStyles,
+      didParseCell:makeParser(rowMeta)
+    });
+  }
 
   var blob=doc.output('blob');
   await saveBlob(blob,'Besucher-Budget_'+S.year+'_'+S.sc+'.pdf','PDF-Datei','application/pdf',['.pdf']);
