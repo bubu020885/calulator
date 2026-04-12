@@ -89,6 +89,90 @@ section h2 {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   align-items: end;
+  margin-bottom: 16px;
+}
+
+.form-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.form-field .optional {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* Template week */
+.template-week {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px 16px;
+  margin-bottom: 16px;
+  background: #fafbfc;
+}
+
+.template-week legend {
+  padding: 0 8px;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.template-week .hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.tpl-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tpl-day label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.tpl-day select {
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .template-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .template-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .form-field label {
@@ -336,6 +420,7 @@ button:disabled {
 .sw-weekend { background: var(--weekend); }
 .sw-holiday { background: var(--holiday); }
 .sw-school { background: var(--school); }
+.sw-off-season { background: #f3f4f6; }
 
 /* Table */
 .table-card {
@@ -394,6 +479,15 @@ button:disabled {
 
 #dayTable tbody tr.holiday.school-holiday {
   background: linear-gradient(90deg, var(--holiday) 50%, var(--school) 50%);
+}
+
+#dayTable tbody tr.off-season {
+  background: #f3f4f6;
+  color: var(--text-muted);
+}
+
+#dayTable tbody tr.off-season .visitors-cell {
+  color: var(--text-muted);
 }
 
 #dayTable tbody tr.month-header td {
