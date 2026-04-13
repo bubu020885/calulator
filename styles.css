@@ -280,17 +280,73 @@ button:disabled {
 }
 
 .info-msg {
-  margin-top: 10px;
-  font-size: 0.88rem;
+  margin-top: 12px;
+  font-size: 0.95rem;
   color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.info-msg:empty {
+  display: none;
+}
+
+.info-msg.error,
+.info-msg.warning,
+.info-msg.success {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 5px solid transparent;
+  font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.info-msg.error::before,
+.info-msg.warning::before,
+.info-msg.success::before {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .info-msg.error {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-left-color: #dc2626;
+}
+
+.info-msg.error::before {
+  content: "⚠";
   color: #dc2626;
 }
 
 .info-msg.warning {
+  color: #78350f;
+  background: #fef3c7;
+  border-left-color: #d97706;
+}
+
+.info-msg.warning::before {
+  content: "⚠";
   color: #d97706;
+}
+
+.info-msg.success {
+  color: #065f46;
+  background: #d1fae5;
+  border-left-color: #10b981;
+}
+
+.info-msg.success::before {
+  content: "✓";
+  color: #10b981;
+}
+
+.info-msg:empty {
+  display: none !important;
+  padding: 0;
+  border: 0;
 }
 
 /* Summary */

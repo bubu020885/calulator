@@ -110,14 +110,34 @@ function computeOcc(row,tpl,tplF,sS,sE){
 var S={year:null,sc:null,maxV:0,tpl:[],tplF:[],sS:null,sE:null,rows:[]};
 function calcV(r){return Math.round(S.maxV*occPct(r.occ)/100);}
 
+/* info messages */
+function setInfo(kind,msg){
+  var el=document.getElementById('infoMsg');
+  el.className='info-msg';
+  if(!msg){el.textContent='';return;}
+  if(kind)el.classList.add(kind);
+  el.textContent=msg;
+  try{el.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
+}
+function clearInfo(){setInfo('','');}
+
+/* show or hide the save-project button depending on whether a table exists */
+function updateSaveVisibility(){
+  var b=document.getElementById('saveProjectBtn');if(!b)return;
+  if(S.rows&&S.rows.length)b.classList.remove('hidden');else b.classList.add('hidden');
+}
+
 /* generate */
 async function generate(){
-  var info=document.getElementById('infoMsg');info.textContent='';info.className='info-msg';
+  clearInfo();
   var y=parseInt(document.getElementById('year').value,10);
   var sc=document.getElementById('state').value;
   var mv=parseInt(document.getElementById('maxVisitors').value,10)||0;
-  if(!sc){info.textContent='Bitte ein Bundesland wählen.';info.classList.add('error');return;}
-  if(mv<=0){info.textContent='Bitte max. Besucherzahl > 0 angeben.';info.classList.add('error');return;}
+  var missing=[];
+  if(!sc)missing.push('Bundesland');
+  if(!mv||mv<=0)missing.push('Max. Besucher pro Tag (> 0)');
+  if(!y)missing.push('Kalenderjahr');
+  if(missing.length){setInfo('error','Bitte ausfüllen: '+missing.join(', ')+'.');return;}
   var tpl=[],tplF=[];
   for(var i=0;i<7;i++){tpl.push(document.getElementById('tpl-'+i).value);tplF.push(document.getElementById('tplF-'+i).value);}
   var sS=parseDate(document.getElementById('seasonStart').value);
@@ -127,7 +147,7 @@ async function generate(){
     var ph=getHolidays(y,sc);
     var sr=await fetchSchool(y,sc);
     var sm=buildSchoolMap(sr);
-    if(!sr){info.textContent='Hinweis: Schulferien konnten nicht geladen werden.';info.classList.add('warning');}
+    if(!sr)setInfo('warning','Hinweis: Schulferien konnten nicht geladen werden. Die Tabelle funktioniert ohne Ferien-Informationen weiter.');
     var rows=[];
     for(var d=new Date(y,0,1);d<new Date(y+1,0,1);d.setDate(d.getDate()+1)){
       var iso=fmtISO(d),dt=new Date(d);
@@ -138,8 +158,9 @@ async function generate(){
     S.year=y;S.sc=sc;S.maxV=mv;S.tpl=tpl;S.tplF=tplF;S.sS=sS;S.sE=sE;S.rows=rows;
     loadRows();saveGlobal();renderTable();renderSummary();
     document.getElementById('results').classList.remove('hidden');
+    updateSaveVisibility();
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(e){console.error(e);info.textContent='Fehler: '+e.message;info.classList.add('error');}
+  }catch(e){console.error(e);setInfo('error','Fehler: '+e.message);}
   finally{btn.disabled=false;btn.innerHTML='OK &mdash; Tabelle erstellen';}
 }
 
@@ -335,6 +356,77 @@ async function ensurePDF(){
   }
 }
 
+/* project save / open */
+async function saveProject(){
+  if(!S.rows||!S.rows.length){setInfo('error','Es gibt noch keine Tabelle zum Speichern. Bitte erst "OK — Tabelle erstellen" klicken.');return;}
+  var data={
+    app:'besucher-budget-rechner',v:1,
+    savedAt:new Date().toISOString(),
+    year:S.year,state:S.sc,maxV:S.maxV,
+    seasonStart:S.sS?fmtISO(S.sS):'',
+    seasonEnd:S.sE?fmtISO(S.sE):'',
+    tpl:S.tpl.slice(),tplF:S.tplF.slice(),
+    rows:S.rows.map(function(r){return{d:fmtISO(r.date),ph:r.ph||'',sh:r.sh||'',occ:r.occ,notes:r.notes||''};})
+  };
+  var json=JSON.stringify(data,null,2);
+  var blob=new Blob([json],{type:'application/json'});
+  var fn='Besucher-Budget_'+S.year+'_'+S.sc+'.bbr.json';
+  var ok=await saveBlob(blob,fn,'Besucher-Budget-Projekt','application/json',['.json','.bbr']);
+  if(ok)setInfo('success','Projekt gespeichert als „'+fn+'".');
+}
+
+function applyProject(data){
+  if(!data||data.app!=='besucher-budget-rechner')throw new Error('Unbekanntes Dateiformat.');
+  if(!Array.isArray(data.rows)||!data.rows.length)throw new Error('Datei enthält keine Tages-Daten.');
+  if(!data.state||!BUNDESLAENDER[data.state])throw new Error('Unbekanntes Bundesland: '+data.state);
+  /* populate form fields */
+  var ySel=document.getElementById('year');
+  /* add option if the saved year isn't in the dropdown */
+  var has=false;for(var i=0;i<ySel.options.length;i++)if(parseInt(ySel.options[i].value,10)===data.year){has=true;break;}
+  if(!has){var o=document.createElement('option');o.value=data.year;o.textContent=data.year;ySel.appendChild(o);}
+  ySel.value=String(data.year);
+  document.getElementById('state').value=data.state;
+  document.getElementById('maxVisitors').value=data.maxV||0;
+  document.getElementById('seasonStart').value=data.seasonStart||'';
+  document.getElementById('seasonEnd').value=data.seasonEnd||'';
+  if(Array.isArray(data.tpl)&&data.tpl.length===7)data.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});
+  if(Array.isArray(data.tplF)&&data.tplF.length===7)data.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});
+  /* rebuild S from rows */
+  S.year=data.year;S.sc=data.state;S.maxV=parseInt(data.maxV,10)||0;
+  S.tpl=Array.isArray(data.tpl)?data.tpl.slice():[];
+  S.tplF=Array.isArray(data.tplF)?data.tplF.slice():[];
+  S.sS=data.seasonStart?parseDate(data.seasonStart):null;
+  S.sE=data.seasonEnd?parseDate(data.seasonEnd):null;
+  S.rows=data.rows.map(function(r){return{date:parseDate(r.d),ph:r.ph||'',sh:r.sh||'',occ:r.occ||'Off',notes:r.notes||''};});
+  saveRows();saveGlobal();
+  renderTable();renderSummary();
+  document.getElementById('results').classList.remove('hidden');
+  updateSaveVisibility();
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function openProject(){
+  var input=document.getElementById('openProjectFile');
+  input.value='';
+  input.onchange=function(){
+    var f=input.files&&input.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var data=JSON.parse(rd.result);
+        applyProject(data);
+        setInfo('success','Projekt geladen: „'+f.name+'" ('+S.rows.length+' Tage).');
+      }catch(e){
+        console.error(e);
+        setInfo('error','Projekt konnte nicht geladen werden: '+e.message);
+      }
+    };
+    rd.onerror=function(){setInfo('error','Datei konnte nicht gelesen werden.');};
+    rd.readAsText(f);
+  };
+  input.click();
+}
+
 async function withLoading(btn,label,fn){
   var orig=btn.innerHTML;btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span>'+label;
@@ -527,5 +619,8 @@ function init(){
   document.getElementById('exportPdfBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Exportiere…',toPdf);});
   document.getElementById('reapplyTemplateBtn').addEventListener('click',reapply);
   document.getElementById('resetBtn').addEventListener('click',resetAll);
+  document.getElementById('openProjectBtn').addEventListener('click',openProject);
+  document.getElementById('saveProjectBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Speichere…',saveProject);});
+  updateSaveVisibility();
 }
 document.addEventListener('DOMContentLoaded',init);
