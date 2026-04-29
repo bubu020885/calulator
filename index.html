@@ -13,69 +13,129 @@
 <body>
   <header>
     <h1>Besucher-Budget-Rechner</h1>
-    <p>Planen Sie Ihre erwarteten Besucherzahlen pro Tag für ein komplettes Kalenderjahr</p>
+    <p>Planen Sie Ihre erwarteten Besucherzahlen pro Tag f&uuml;r ein komplettes Kalenderjahr</p>
   </header>
 
   <main>
+    <!-- Toolbar: load / save -->
+    <div class="form-toolbar">
+      <button id="openProjectBtn" type="button" class="btn-tool btn-tool-load">Projekt &ouml;ffnen</button>
+      <button id="saveProjectBtn" type="button" class="btn-tool btn-tool-save hidden">Projekt speichern</button>
+    </div>
+    <input type="file" id="openProjectFile" accept="application/json,.json,.bbr" class="hidden" />
+
     <section class="input-form">
       <h2>Konfiguration</h2>
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="year">Kalenderjahr</label>
-          <select id="year"></select>
+
+      <!-- Row 1: Grundeinstellungen + Saison -->
+      <div class="form-row">
+        <div class="form-group" data-color="blue">
+          <div class="group-label">Grundeinstellungen</div>
+          <div class="field">
+            <label for="year">Kalenderjahr</label>
+            <select id="year"></select>
+          </div>
+          <div class="field field-wide">
+            <label for="state">Bundesland</label>
+            <select id="state"><option value="">-- bitte w&auml;hlen --</option></select>
+          </div>
+          <div class="field">
+            <label for="maxVisitors">Max. Besucher/Tag</label>
+            <input type="number" id="maxVisitors" min="0" step="1" value="1000" />
+          </div>
         </div>
-        <div class="form-field">
-          <label for="state">Bundesland</label>
-          <select id="state">
-            <option value="">-- bitte wählen --</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="maxVisitors">Max. Besucher pro Tag</label>
-          <input type="number" id="maxVisitors" min="0" step="1" value="1000" />
+        <div class="form-group" data-color="amber">
+          <div class="group-label">Saison (optional)</div>
+          <div class="field">
+            <label for="seasonStart">Saisonbeginn</label>
+            <input type="date" id="seasonStart" />
+          </div>
+          <div class="field">
+            <label for="seasonEnd">Saisonende</label>
+            <input type="date" id="seasonEnd" />
+          </div>
         </div>
       </div>
 
-      <div class="form-grid form-grid-2">
-        <div class="form-field">
-          <label for="seasonStart">Saisonbeginn <span class="optional">(optional)</span></label>
-          <input type="date" id="seasonStart" />
-        </div>
-        <div class="form-field">
-          <label for="seasonEnd">Saisonende <span class="optional">(optional)</span></label>
-          <input type="date" id="seasonEnd" />
+      <!-- Row 2: Ticketing -->
+      <div class="form-row">
+        <div class="form-group" data-color="teal">
+          <div class="group-label">Ticketing</div>
+          <div class="field">
+            <label for="ticketAdult">Erwachsene (&euro;)</label>
+            <input type="number" id="ticketAdult" step="0.01" min="0" value="0" />
+          </div>
+          <div class="field field-narrow">
+            <label for="vatAdult">MwSt</label>
+            <select id="vatAdult"><option value="19">19 %</option><option value="7">7 %</option><option value="0">0 %</option></select>
+          </div>
+          <div class="field-sep"></div>
+          <div class="field">
+            <label for="ticketChild">Kind (&euro;)</label>
+            <input type="number" id="ticketChild" step="0.01" min="0" value="0" />
+          </div>
+          <div class="field field-narrow">
+            <label for="vatChild">MwSt</label>
+            <select id="vatChild"><option value="19">19 %</option><option value="7">7 %</option><option value="0">0 %</option></select>
+          </div>
+          <div class="field-sep"></div>
+          <div class="field">
+            <label for="ticketReduced">Erm&auml;&szlig;igt (&euro;)</label>
+            <input type="number" id="ticketReduced" step="0.01" min="0" value="0" />
+          </div>
+          <div class="field field-narrow">
+            <label for="vatReduced">MwSt</label>
+            <select id="vatReduced"><option value="19">19 %</option><option value="7">7 %</option><option value="0">0 %</option></select>
+          </div>
+          <div class="field-sep"></div>
+          <div class="field-avg">
+            <label>&Oslash; Netto</label>
+            <div id="avgNetTicket" class="avg-display avg-display-teal">0,00 &euro;</div>
+          </div>
         </div>
       </div>
 
-      <fieldset class="template-week">
-        <legend>Musterwoche &mdash; Normalbetrieb</legend>
-        <p class="hint">
-          Standard-Auslastung pro Wochentag innerhalb der Saison.
-          Feiertage werten dieses Muster zus&auml;tzlich um 2 Stufen auf.
-          Au&szlig;erhalb der Saison sind alle Tage <strong>Off</strong>.
-        </p>
+      <!-- Row 3: Umsatz pro Kopf -->
+      <div class="form-row">
+        <div class="form-group" data-color="green">
+          <div class="group-label">Umsatz pro Kopf</div>
+          <div class="field">
+            <label for="revenueRetail">Retail (&euro;)</label>
+            <input type="number" id="revenueRetail" step="0.01" min="0" value="0" />
+          </div>
+          <div class="field">
+            <label for="revenueFB">F&amp;B (&euro;)</label>
+            <input type="number" id="revenueFB" step="0.01" min="0" value="0" />
+          </div>
+          <div class="field">
+            <label for="revenueMachines">Machines (&euro;)</label>
+            <input type="number" id="revenueMachines" step="0.01" min="0" value="0" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Musterwoche Normalbetrieb -->
+      <div class="template-week">
+        <div class="tw-title">Musterwoche &mdash; Normalbetrieb</div>
         <div class="template-grid" id="templateGrid"></div>
-      </fieldset>
+      </div>
 
-      <fieldset class="template-week template-week-ferien">
-        <legend>Musterwoche &mdash; Ferien</legend>
-        <p class="hint">
-          Dieses Muster wird in Schulferien-Zeitr&auml;umen anstelle des Normalbetriebs verwendet.
-          Feiertage werten auch hier um 2 Stufen auf.
-        </p>
+      <!-- Musterwoche Ferien -->
+      <div class="template-week template-week-ferien">
+        <div class="tw-title tw-title-ferien">Musterwoche &mdash; Ferien</div>
         <div class="template-grid" id="templateGridFerien"></div>
-      </fieldset>
+      </div>
 
       <div class="form-actions">
-        <button id="openProjectBtn" type="button" class="btn-secondary">Projekt öffnen…</button>
-        <button id="saveProjectBtn" type="button" class="btn-secondary hidden">Projekt speichern…</button>
-        <button id="generateBtn" type="button">OK &mdash; Tabelle erstellen</button>
+        <div class="action-row">
+          <button id="generateBtn" type="button">OK &mdash; Tabelle erstellen</button>
+        </div>
       </div>
-      <input type="file" id="openProjectFile" accept="application/json,.json,.bbr" class="hidden" />
       <div id="infoMsg" class="info-msg"></div>
     </section>
 
     <section id="results" class="hidden">
+      <!-- Besucher summary -->
       <div class="summary-bar">
         <div class="summary-card">
           <div class="label">Jahresbudget (Besucher)</div>
@@ -95,6 +155,30 @@
         </div>
       </div>
 
+      <!-- Einnahmen summary -->
+      <div class="summary-bar summary-bar-revenue" id="revenueSummaryBar">
+        <div class="summary-card revenue-card">
+          <div class="label">Jahresumsatz Gesamt</div>
+          <div id="revYearTotal" class="value">0 &euro;</div>
+        </div>
+        <div class="summary-card revenue-card-cat">
+          <div class="label">Ticketing</div>
+          <div id="revTicketing" class="value">0 &euro;</div>
+        </div>
+        <div class="summary-card revenue-card-cat">
+          <div class="label">Retail</div>
+          <div id="revRetail" class="value">0 &euro;</div>
+        </div>
+        <div class="summary-card revenue-card-cat">
+          <div class="label">F&amp;B</div>
+          <div id="revFB" class="value">0 &euro;</div>
+        </div>
+        <div class="summary-card revenue-card-cat">
+          <div class="label">Machines</div>
+          <div id="revMachines" class="value">0 &euro;</div>
+        </div>
+      </div>
+
       <div class="grid-2">
         <div class="card">
           <h3>Tage nach Auslastung</h3>
@@ -111,7 +195,7 @@
           <button id="exportExcelBtn" type="button" class="btn-success">Als Excel exportieren</button>
           <button id="exportPdfBtn" type="button" class="btn-success">Als PDF exportieren</button>
           <button id="reapplyTemplateBtn" type="button" class="btn-secondary">Musterwoche neu anwenden</button>
-          <button id="resetBtn" type="button" class="btn-secondary">Zurücksetzen</button>
+          <button id="resetBtn" type="button" class="btn-secondary">Zur&uuml;cksetzen</button>
         </div>
         <div class="legend">
           <span class="legend-item"><span class="legend-swatch sw-weekend"></span>Wochenende</span>
@@ -122,7 +206,7 @@
       </div>
 
       <div class="card table-card">
-        <h3>Tagesübersicht</h3>
+        <h3>Tages&uuml;bersicht</h3>
         <div class="table-wrapper">
           <table id="dayTable">
             <thead>
@@ -132,6 +216,7 @@
                 <th>Feiertag / Ferien</th>
                 <th>Auslastung</th>
                 <th>Besucher</th>
+                <th>Umsatz</th>
                 <th>Notizen</th>
               </tr>
             </thead>

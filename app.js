@@ -107,8 +107,34 @@ function computeOcc(row,tpl,tplF,sS,sE){
 }
 
 /* state */
-var S={year:null,sc:null,maxV:0,tpl:[],tplF:[],sS:null,sE:null,rows:[]};
+var S={year:null,sc:null,maxV:0,tpl:[],tplF:[],sS:null,sE:null,rows:[],
+  rev:{adultPrice:0,adultVat:19,childPrice:0,childVat:19,reducedPrice:0,reducedVat:19,retail:0,fb:0,machines:0}};
 function calcV(r){return Math.round(S.maxV*occPct(r.occ)/100);}
+function fmtEUR(v){return v.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
+function avgNetTicket(){
+  var r=S.rev;
+  var nA=r.adultPrice/(1+r.adultVat/100);
+  var nK=r.childPrice/(1+r.childVat/100);
+  var nE=r.reducedPrice/(1+r.reducedVat/100);
+  return(nA+nK+nE)/3;
+}
+function calcDayRev(vis){
+  var a=avgNetTicket();
+  var t=vis*a,re=vis*S.rev.retail,fb=vis*S.rev.fb,ma=vis*S.rev.machines;
+  return{ticketing:t,retail:re,fb:fb,machines:ma,total:t+re+fb+ma};
+}
+function readRevForm(){
+  S.rev.adultPrice=parseFloat(document.getElementById('ticketAdult').value)||0;
+  S.rev.adultVat=parseInt(document.getElementById('vatAdult').value,10)||0;
+  S.rev.childPrice=parseFloat(document.getElementById('ticketChild').value)||0;
+  S.rev.childVat=parseInt(document.getElementById('vatChild').value,10)||0;
+  S.rev.reducedPrice=parseFloat(document.getElementById('ticketReduced').value)||0;
+  S.rev.reducedVat=parseInt(document.getElementById('vatReduced').value,10)||0;
+  S.rev.retail=parseFloat(document.getElementById('revenueRetail').value)||0;
+  S.rev.fb=parseFloat(document.getElementById('revenueFB').value)||0;
+  S.rev.machines=parseFloat(document.getElementById('revenueMachines').value)||0;
+  var el=document.getElementById('avgNetTicket');if(el)el.textContent=fmtEUR(avgNetTicket());
+}
 
 /* info messages */
 function setInfo(kind,msg){
@@ -156,7 +182,7 @@ async function generate(){
       rows.push(row);
     }
     S.year=y;S.sc=sc;S.maxV=mv;S.tpl=tpl;S.tplF=tplF;S.sS=sS;S.sE=sE;S.rows=rows;
-    loadRows();saveGlobal();renderTable();renderSummary();
+    readRevForm();loadRows();saveGlobal();renderTable();renderSummary();
     document.getElementById('results').classList.remove('hidden');
     updateSaveVisibility();
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -167,14 +193,15 @@ async function generate(){
 /* render table */
 function renderTable(){
   var tb=document.querySelector('#dayTable tbody');tb.innerHTML='';
-  var ms=Array(12).fill(0);S.rows.forEach(function(r){ms[r.date.getMonth()]+=calcV(r);});
+  var ms=Array(12).fill(0),mr=Array(12).fill(0);
+  S.rows.forEach(function(r){var v=calcV(r);ms[r.date.getMonth()]+=v;mr[r.date.getMonth()]+=calcDayRev(v).total;});
   var cm=-1;
   S.rows.forEach(function(row,idx){
     if(row.date.getMonth()!==cm){
       cm=row.date.getMonth();
       var mtr=document.createElement('tr');mtr.className='month-header';
-      var mtd=document.createElement('td');mtd.colSpan=6;
-      mtd.innerHTML=MONTHS_DE[cm]+' '+S.year+'<span class="month-subtotal">Monatsbudget: '+ms[cm].toLocaleString('de-DE')+'</span>';
+      var mtd=document.createElement('td');mtd.colSpan=7;
+      mtd.innerHTML=MONTHS_DE[cm]+' '+S.year+'<span class="month-subtotal">Besucher: '+ms[cm].toLocaleString('de-DE')+' &middot; Umsatz: '+fmtEUR(mr[cm])+'</span>';
       mtr.appendChild(mtd);tb.appendChild(mtr);
     }
     var tr=document.createElement('tr');tr.dataset.index=idx;
@@ -198,10 +225,17 @@ function renderTable(){
     var sel=document.createElement('select');sel.className='occupancy-select';sel.dataset.occ=row.occ;
     OCCUPANCY_OPTIONS.forEach(function(o){var op=document.createElement('option');op.value=o.value;op.textContent=o.label+' ('+o.percent+'%)';sel.appendChild(op);});
     sel.value=row.occ;
-    var tdV=document.createElement('td');tdV.className='visitors-cell';tdV.textContent=calcV(row).toLocaleString('de-DE');
-    sel.addEventListener('change',function(e){row.occ=e.target.value;sel.dataset.occ=row.occ;tdV.textContent=calcV(row).toLocaleString('de-DE');saveRows();renderSummary();updMH();});
+    var vis=calcV(row);
+    var tdV=document.createElement('td');tdV.className='visitors-cell';tdV.textContent=vis.toLocaleString('de-DE');
+    var tdR=document.createElement('td');tdR.className='revenue-cell';tdR.textContent=fmtEUR(calcDayRev(vis).total);
+    sel.addEventListener('change',function(e){
+      row.occ=e.target.value;sel.dataset.occ=row.occ;
+      var v2=calcV(row);tdV.textContent=v2.toLocaleString('de-DE');tdR.textContent=fmtEUR(calcDayRev(v2).total);
+      saveRows();renderSummary();updMH();
+    });
     tdO.appendChild(sel);tr.appendChild(tdO);
     tr.appendChild(tdV);
+    tr.appendChild(tdR);
 
     td=document.createElement('td');
     var ni=document.createElement('input');ni.type='text';ni.className='note-input';ni.value=row.notes;ni.placeholder='z. B. Event…';
@@ -213,15 +247,17 @@ function renderTable(){
 
 function updVC(){
   document.querySelectorAll('#dayTable tbody tr[data-index]').forEach(function(tr){
-    var i=parseInt(tr.dataset.index,10),c=tr.querySelector('.visitors-cell');
-    if(c)c.textContent=calcV(S.rows[i]).toLocaleString('de-DE');
+    var i=parseInt(tr.dataset.index,10),v=calcV(S.rows[i]);
+    var c=tr.querySelector('.visitors-cell');if(c)c.textContent=v.toLocaleString('de-DE');
+    var rc=tr.querySelector('.revenue-cell');if(rc)rc.textContent=fmtEUR(calcDayRev(v).total);
   });
   updMH();
 }
 function updMH(){
-  var ms=Array(12).fill(0);S.rows.forEach(function(r){ms[r.date.getMonth()]+=calcV(r);});
+  var ms=Array(12).fill(0),mr=Array(12).fill(0);
+  S.rows.forEach(function(r){var v=calcV(r);ms[r.date.getMonth()]+=v;mr[r.date.getMonth()]+=calcDayRev(v).total;});
   document.querySelectorAll('#dayTable tbody tr.month-header td').forEach(function(td,i){
-    td.innerHTML=MONTHS_DE[i]+' '+S.year+'<span class="month-subtotal">Monatsbudget: '+ms[i].toLocaleString('de-DE')+'</span>';
+    td.innerHTML=MONTHS_DE[i]+' '+S.year+'<span class="month-subtotal">Besucher: '+ms[i].toLocaleString('de-DE')+' &middot; Umsatz: '+fmtEUR(mr[i])+'</span>';
   });
 }
 
@@ -243,11 +279,31 @@ function renderSummary(){
   }else{sDays=S.rows.length;}
   document.getElementById('seasonDays').textContent=sDays.toLocaleString('de-DE');
 
-  /* monthly */
-  var monthly=Array(12).fill(0);
-  S.rows.forEach(function(r){monthly[r.date.getMonth()]+=calcV(r);});
+  /* revenue totals */
+  var revT={ticketing:0,retail:0,fb:0,machines:0,total:0};
+  S.rows.forEach(function(r){var rv=calcDayRev(calcV(r));revT.ticketing+=rv.ticketing;revT.retail+=rv.retail;revT.fb+=rv.fb;revT.machines+=rv.machines;revT.total+=rv.total;});
+  var ryt=document.getElementById('revYearTotal');if(ryt)ryt.textContent=fmtEUR(revT.total);
+  var rt1=document.getElementById('revTicketing');if(rt1)rt1.textContent=fmtEUR(revT.ticketing);
+  var rt2=document.getElementById('revRetail');if(rt2)rt2.textContent=fmtEUR(revT.retail);
+  var rt3=document.getElementById('revFB');if(rt3)rt3.textContent=fmtEUR(revT.fb);
+  var rt4=document.getElementById('revMachines');if(rt4)rt4.textContent=fmtEUR(revT.machines);
+
+  /* monthly with revenue */
+  var monthly=Array(12).fill(0),mRev=[];
+  for(var mi=0;mi<12;mi++)mRev.push({ticketing:0,retail:0,fb:0,machines:0,total:0});
+  S.rows.forEach(function(r){var v=calcV(r),m=r.date.getMonth();monthly[m]+=v;var rv=calcDayRev(v);mRev[m].ticketing+=rv.ticketing;mRev[m].retail+=rv.retail;mRev[m].fb+=rv.fb;mRev[m].machines+=rv.machines;mRev[m].total+=rv.total;});
   var mg=document.getElementById('monthlyGrid');mg.innerHTML='';
-  for(var i=0;i<12;i++){var d=document.createElement('div');d.className='monthly-item';d.innerHTML='<div class="month-name">'+MONTHS_DE[i]+'</div><div class="month-value">'+monthly[i].toLocaleString('de-DE')+'</div>';mg.appendChild(d);}
+  for(var i=0;i<12;i++){
+    var d=document.createElement('div');d.className='monthly-item';
+    d.innerHTML='<div class="month-header"><span class="month-name">'+MONTHS_DE[i]+'</span></div>'
+      +'<div class="month-line"><span class="ml-label">Besucher</span><span class="ml-val">'+monthly[i].toLocaleString('de-DE')+'</span></div>'
+      +'<div class="month-line"><span class="ml-label">Ticketing</span><span class="ml-val">'+fmtEUR(mRev[i].ticketing)+'</span></div>'
+      +'<div class="month-line"><span class="ml-label">Retail</span><span class="ml-val">'+fmtEUR(mRev[i].retail)+'</span></div>'
+      +'<div class="month-line"><span class="ml-label">F&amp;B</span><span class="ml-val">'+fmtEUR(mRev[i].fb)+'</span></div>'
+      +'<div class="month-line"><span class="ml-label">Machines</span><span class="ml-val">'+fmtEUR(mRev[i].machines)+'</span></div>'
+      +'<div class="month-line month-line-umsatz"><span class="ml-label">Umsatz</span><span class="ml-val">'+fmtEUR(mRev[i].total)+'</span></div>';
+    mg.appendChild(d);
+  }
 
   /* counts: Row1=Off+Season, Row2=Low/Med/High/Peak, Row3=Close */
   var counts={};OCCUPANCY_OPTIONS.forEach(function(o){counts[o.value]=0;});
@@ -306,8 +362,19 @@ function resetAll(){
 function rKey(){return'vb:r:'+S.year+':'+S.sc;}
 function saveRows(){if(!S.year)return;try{localStorage.setItem(rKey(),JSON.stringify(S.rows.map(function(r){return{o:r.occ,n:r.notes};})));}catch(e){}}
 function loadRows(){try{var raw=localStorage.getItem(rKey());if(!raw)return;var sv=JSON.parse(raw);if(Array.isArray(sv)&&sv.length===S.rows.length)sv.forEach(function(s,i){if(s.o)S.rows[i].occ=s.o;if(s.n)S.rows[i].notes=s.n;});}catch(e){}}
-function saveGlobal(){try{localStorage.setItem('vb:cfg',JSON.stringify({mv:S.maxV,tpl:S.tpl,tplF:S.tplF}));}catch(e){}}
-function loadGlobal(){try{var raw=localStorage.getItem('vb:cfg');if(!raw)return;var c=JSON.parse(raw);if(c.mv)document.getElementById('maxVisitors').value=c.mv;if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});}catch(e){}}
+function saveGlobal(){try{localStorage.setItem('vb:cfg',JSON.stringify({mv:S.maxV,tpl:S.tpl,tplF:S.tplF,rev:S.rev}));}catch(e){}}
+function loadGlobal(){
+  try{var raw=localStorage.getItem('vb:cfg');if(!raw)return;var c=JSON.parse(raw);
+  if(c.mv)document.getElementById('maxVisitors').value=c.mv;
+  if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});
+  if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});
+  if(c.rev){
+    S.rev=c.rev;
+    var m={ticketAdult:'adultPrice',vatAdult:'adultVat',ticketChild:'childPrice',vatChild:'childVat',ticketReduced:'reducedPrice',vatReduced:'reducedVat',revenueRetail:'retail',revenueFB:'fb',revenueMachines:'machines'};
+    Object.keys(m).forEach(function(id){var el=document.getElementById(id);if(el)el.value=c.rev[m[id]]!=null?c.rev[m[id]]:'';});
+    var avg=document.getElementById('avgNetTicket');if(avg)avg.textContent=fmtEUR(avgNetTicket());
+  }}catch(e){}
+}
 
 /* export helpers */
 function loadScript(url){
@@ -360,12 +427,13 @@ async function ensurePDF(){
 async function saveProject(){
   if(!S.rows||!S.rows.length){setInfo('error','Es gibt noch keine Tabelle zum Speichern. Bitte erst "OK — Tabelle erstellen" klicken.');return;}
   var data={
-    app:'besucher-budget-rechner',v:1,
+    app:'besucher-budget-rechner',v:2,
     savedAt:new Date().toISOString(),
     year:S.year,state:S.sc,maxV:S.maxV,
     seasonStart:S.sS?fmtISO(S.sS):'',
     seasonEnd:S.sE?fmtISO(S.sE):'',
     tpl:S.tpl.slice(),tplF:S.tplF.slice(),
+    rev:JSON.parse(JSON.stringify(S.rev)),
     rows:S.rows.map(function(r){return{d:fmtISO(r.date),ph:r.ph||'',sh:r.sh||'',occ:r.occ,notes:r.notes||''};})
   };
   var json=JSON.stringify(data,null,2);
@@ -379,9 +447,7 @@ function applyProject(data){
   if(!data||data.app!=='besucher-budget-rechner')throw new Error('Unbekanntes Dateiformat.');
   if(!Array.isArray(data.rows)||!data.rows.length)throw new Error('Datei enthält keine Tages-Daten.');
   if(!data.state||!BUNDESLAENDER[data.state])throw new Error('Unbekanntes Bundesland: '+data.state);
-  /* populate form fields */
   var ySel=document.getElementById('year');
-  /* add option if the saved year isn't in the dropdown */
   var has=false;for(var i=0;i<ySel.options.length;i++)if(parseInt(ySel.options[i].value,10)===data.year){has=true;break;}
   if(!has){var o=document.createElement('option');o.value=data.year;o.textContent=data.year;ySel.appendChild(o);}
   ySel.value=String(data.year);
@@ -391,15 +457,19 @@ function applyProject(data){
   document.getElementById('seasonEnd').value=data.seasonEnd||'';
   if(Array.isArray(data.tpl)&&data.tpl.length===7)data.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});
   if(Array.isArray(data.tplF)&&data.tplF.length===7)data.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});
-  /* rebuild S from rows */
   S.year=data.year;S.sc=data.state;S.maxV=parseInt(data.maxV,10)||0;
   S.tpl=Array.isArray(data.tpl)?data.tpl.slice():[];
   S.tplF=Array.isArray(data.tplF)?data.tplF.slice():[];
   S.sS=data.seasonStart?parseDate(data.seasonStart):null;
   S.sE=data.seasonEnd?parseDate(data.seasonEnd):null;
+  if(data.rev){
+    S.rev=data.rev;
+    var m={ticketAdult:'adultPrice',vatAdult:'adultVat',ticketChild:'childPrice',vatChild:'childVat',ticketReduced:'reducedPrice',vatReduced:'reducedVat',revenueRetail:'retail',revenueFB:'fb',revenueMachines:'machines'};
+    Object.keys(m).forEach(function(id){var el=document.getElementById(id);if(el)el.value=data.rev[m[id]]!=null?data.rev[m[id]]:'';});
+    var avg=document.getElementById('avgNetTicket');if(avg)avg.textContent=fmtEUR(avgNetTicket());
+  }
   S.rows=data.rows.map(function(r){return{date:parseDate(r.d),ph:r.ph||'',sh:r.sh||'',occ:r.occ||'Off',notes:r.notes||''};});
-  saveRows();saveGlobal();
-  renderTable();renderSummary();
+  saveRows();saveGlobal();renderTable();renderSummary();
   document.getElementById('results').classList.remove('hidden');
   updateSaveVisibility();
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -456,10 +526,10 @@ async function toExcel(){
   if(!S.rows.length)return;
   await ensureXLSX();
   var wb=XLSX.utils.book_new();
-  var hdr=['Datum','Wochentag','Feiertag','Schulferien','Auslastung','Auslastung %','Besucher','Notizen'];
-  var data=S.rows.map(function(r){return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],r.ph,r.sh,r.occ,occPct(r.occ),calcV(r),r.notes];});
+  var hdr=['Datum','Wochentag','Feiertag','Schulferien','Auslastung','Auslastung %','Besucher','Umsatz','Notizen'];
+  var data=S.rows.map(function(r){var v=calcV(r);return[fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],r.ph,r.sh,r.occ,occPct(r.occ),v,Math.round(calcDayRev(v).total*100)/100,r.notes];});
   var ws=XLSX.utils.aoa_to_sheet([hdr].concat(data));
-  ws['!cols']=[{wch:12},{wch:12},{wch:26},{wch:26},{wch:10},{wch:12},{wch:12},{wch:30}];
+  ws['!cols']=[{wch:12},{wch:12},{wch:26},{wch:26},{wch:10},{wch:12},{wch:12},{wch:14},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws,'Tagesdaten');
   var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -535,8 +605,8 @@ async function toPdf(){
   for(var mm=0;mm<12;mm++)idxByMonth.push([]);
   S.rows.forEach(function(r,idx){idxByMonth[r.date.getMonth()].push(idx);});
 
-  var headCols=[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Notizen']];
-  var colStyles={0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:70},3:{cellWidth:28},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}};
+  var headCols=[['Datum','Wochentag','Feiertag/Ferien','Auslastung','Besucher','Umsatz','Notizen']];
+  var colStyles={0:{cellWidth:20},1:{cellWidth:20},2:{cellWidth:58},3:{cellWidth:24},4:{cellWidth:20,halign:'right'},5:{cellWidth:22,halign:'right'},6:{cellWidth:'auto'}};
 
   function makeParser(meta){
     return function(data){
@@ -555,16 +625,17 @@ async function toPdf(){
     doc.addPage();
 
     var body=[];var rowMeta=[];
+    var mRevT=0;idxs.forEach(function(idx){mRevT+=calcDayRev(calcV(S.rows[idx])).total;});
     body.push([{
-      content:MONTHS_DE[mi]+' '+S.year+'  —  Monatsbudget: '+monthlyTotals[mi].toLocaleString('de-DE')+' Besucher',
-      colSpan:6,
+      content:MONTHS_DE[mi]+' '+S.year+'  —  Besucher: '+monthlyTotals[mi].toLocaleString('de-DE')+'  |  Umsatz: '+fmtEUR(mRevT),
+      colSpan:7,
       styles:{fillColor:[48,63,159],textColor:255,fontStyle:'bold',fontSize:10,halign:'left',cellPadding:{top:3,bottom:3,left:4,right:4}}
     }]);
     rowMeta.push(null);
     idxs.forEach(function(idx){
-      var r=S.rows[idx];
+      var r=S.rows[idx],v=calcV(r);
       var h=[];if(r.ph)h.push(r.ph);if(r.sh)h.push('Ferien: '+r.sh);
-      body.push([fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',calcV(r).toLocaleString('de-DE'),r.notes]);
+      body.push([fmtDE(r.date),WEEKDAYS_DE[r.date.getDay()],h.join('; '),r.occ+' ('+occPct(r.occ)+'%)',v.toLocaleString('de-DE'),fmtEUR(calcDayRev(v).total),r.notes]);
       rowMeta.push(idx);
     });
 
@@ -614,6 +685,12 @@ function init(){
   document.getElementById('maxVisitors').addEventListener('input',function(e){
     var v=parseInt(e.target.value,10)||0;
     if(S.rows.length>0&&v>0){S.maxV=v;saveRows();updVC();renderSummary();}
+  });
+  /* revenue inputs: live update on change */
+  var revIds=['ticketAdult','vatAdult','ticketChild','vatChild','ticketReduced','vatReduced','revenueRetail','revenueFB','revenueMachines'];
+  revIds.forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    el.addEventListener('input',function(){readRevForm();if(S.rows.length){saveGlobal();renderTable();renderSummary();}});
   });
   document.getElementById('exportExcelBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Exportiere…',toExcel);});
   document.getElementById('exportPdfBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Exportiere…',toPdf);});
