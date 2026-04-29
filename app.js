@@ -698,6 +698,14 @@ function init(){
   document.getElementById('resetBtn').addEventListener('click',resetAll);
   document.getElementById('openProjectBtn').addEventListener('click',openProject);
   document.getElementById('saveProjectBtn').addEventListener('click',function(e){withLoading(e.currentTarget,'Speichere…',saveProject);});
+  /* bulk template buttons */
+  document.querySelectorAll('.template-bulk').forEach(function(bar){
+    var prefix=bar.dataset.target;
+    bar.addEventListener('click',function(e){
+      var val=e.target.dataset&&e.target.dataset.bulk;if(!val)return;
+      for(var i=0;i<7;i++){var el=document.getElementById(prefix+'-'+i);if(el)el.value=val;}
+    });
+  });
   updateSaveVisibility();
 }
 document.addEventListener('DOMContentLoaded',init);

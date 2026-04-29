@@ -274,6 +274,17 @@ section h2 { font-size: 1.3rem; }
   box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15);
 }
 
+.template-bulk {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.template-bulk button {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+}
+
 @media (max-width: 900px) {
   .form-row { flex-direction: column; }
   .template-grid { grid-template-columns: repeat(4, 1fr); }
