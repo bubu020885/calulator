@@ -19,8 +19,8 @@
   <main>
     <!-- Toolbar: load / save -->
     <div class="form-toolbar">
-      <button id="openProjectBtn" type="button" class="btn-tool btn-tool-load">Projekt &ouml;ffnen</button>
-      <button id="saveProjectBtn" type="button" class="btn-tool btn-tool-save hidden">Projekt speichern</button>
+      <button id="openProjectBtn" type="button" class="btn-tool btn-tool-load">&#128194; Laden</button>
+      <button id="saveProjectBtn" type="button" class="btn-tool btn-tool-save hidden">&#128190; Speichern</button>
     </div>
     <input type="file" id="openProjectFile" accept="application/json,.json,.bbr" class="hidden" />
 
@@ -144,7 +144,9 @@
 
       <div class="form-actions">
         <div class="action-row">
-          <button id="generateBtn" type="button">OK &mdash; Tabelle erstellen</button>
+          <button id="reapplyTemplateBtn" type="button" class="btn-secondary hidden">Musterwoche neu anwenden</button>
+          <button id="resetBtn" type="button" class="btn-secondary hidden">Zur&uuml;cksetzen</button>
+          <button id="generateBtn" type="button">Berechne Jahresbudget</button>
         </div>
       </div>
       <div id="infoMsg" class="info-msg"></div>
@@ -210,8 +212,6 @@
         <div class="actions">
           <button id="exportExcelBtn" type="button" class="btn-success">Als Excel exportieren</button>
           <button id="exportPdfBtn" type="button" class="btn-success">Als PDF exportieren</button>
-          <button id="reapplyTemplateBtn" type="button" class="btn-secondary">Musterwoche neu anwenden</button>
-          <button id="resetBtn" type="button" class="btn-secondary">Zur&uuml;cksetzen</button>
         </div>
         <div class="legend">
           <span class="legend-item"><span class="legend-swatch sw-weekend"></span>Wochenende</span>
@@ -244,8 +244,15 @@
   </main>
 
   <footer>
-    <p>Besucher-Budget-Rechner &mdash; Daten werden im lokalen Browser gespeichert.<br><a href="https://www.stefanburian.com">wwww.stefanburian.com</a><br><a href="mailto:contact@stefanburian.com">Contact me for how to work with this tool and make decisions for your daily operations.</a>
-</p>
+    <div class="footer-content">
+      <p class="footer-title">Besucher-Budget-Rechner</p>
+      <p class="footer-privacy">&#128274; Ihre Daten werden nicht auf dem Server verarbeitet oder gespeichert. Alle Berechnungen erfolgen lokal in Ihrem Browser.</p>
+      <p class="footer-links">
+        <a href="https://www.stefanburian.com">www.stefanburian.com</a>
+        <span class="footer-sep">&middot;</span>
+        <a href="mailto:contact@stefanburian.com">Contact me for how to work with this tool</a>
+      </p>
+    </div>
   </footer>
 
   <script src="app.js"></script>

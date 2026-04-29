@@ -150,7 +150,10 @@ function clearInfo(){setInfo('','');}
 /* show or hide the save-project button depending on whether a table exists */
 function updateSaveVisibility(){
   var b=document.getElementById('saveProjectBtn');if(!b)return;
-  if(S.rows&&S.rows.length)b.classList.remove('hidden');else b.classList.add('hidden');
+  var has=S.rows&&S.rows.length;
+  if(has)b.classList.remove('hidden');else b.classList.add('hidden');
+  var ra=document.getElementById('reapplyTemplateBtn');if(ra){if(has)ra.classList.remove('hidden');else ra.classList.add('hidden');}
+  var rb=document.getElementById('resetBtn');if(rb){if(has)rb.classList.remove('hidden');else rb.classList.add('hidden');}
 }
 
 /* generate */
@@ -187,7 +190,7 @@ async function generate(){
     updateSaveVisibility();
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){console.error(e);setInfo('error','Fehler: '+e.message);}
-  finally{btn.disabled=false;btn.innerHTML='OK &mdash; Tabelle erstellen';}
+  finally{btn.disabled=false;btn.textContent='Berechne Jahresbudget';}
 }
 
 /* render table */
@@ -366,8 +369,8 @@ function saveGlobal(){try{localStorage.setItem('vb:cfg',JSON.stringify({mv:S.max
 function loadGlobal(){
   try{var raw=localStorage.getItem('vb:cfg');if(!raw)return;var c=JSON.parse(raw);
   if(c.mv)document.getElementById('maxVisitors').value=c.mv;
-  if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});
-  if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});
+  if(Array.isArray(c.tpl)&&c.tpl.length===7)c.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el){el.value=v;el.dataset.occ=v;}});
+  if(Array.isArray(c.tplF)&&c.tplF.length===7)c.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el){el.value=v;el.dataset.occ=v;}});
   if(c.rev){
     S.rev=c.rev;
     var m={ticketAdult:'adultPrice',vatAdult:'adultVat',ticketChild:'childPrice',vatChild:'childVat',ticketReduced:'reducedPrice',vatReduced:'reducedVat',revenueRetail:'retail',revenueFB:'fb',revenueMachines:'machines'};
@@ -425,7 +428,7 @@ async function ensurePDF(){
 
 /* project save / open */
 async function saveProject(){
-  if(!S.rows||!S.rows.length){setInfo('error','Es gibt noch keine Tabelle zum Speichern. Bitte erst "OK — Tabelle erstellen" klicken.');return;}
+  if(!S.rows||!S.rows.length){setInfo('error','Es gibt noch keine Tabelle zum Speichern. Bitte erst "Berechne Jahresbudget" klicken.');return;}
   var data={
     app:'besucher-budget-rechner',v:2,
     savedAt:new Date().toISOString(),
@@ -455,8 +458,8 @@ function applyProject(data){
   document.getElementById('maxVisitors').value=data.maxV||0;
   document.getElementById('seasonStart').value=data.seasonStart||'';
   document.getElementById('seasonEnd').value=data.seasonEnd||'';
-  if(Array.isArray(data.tpl)&&data.tpl.length===7)data.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el)el.value=v;});
-  if(Array.isArray(data.tplF)&&data.tplF.length===7)data.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el)el.value=v;});
+  if(Array.isArray(data.tpl)&&data.tpl.length===7)data.tpl.forEach(function(v,i){var el=document.getElementById('tpl-'+i);if(el){el.value=v;el.dataset.occ=v;}});
+  if(Array.isArray(data.tplF)&&data.tplF.length===7)data.tplF.forEach(function(v,i){var el=document.getElementById('tplF-'+i);if(el){el.value=v;el.dataset.occ=v;}});
   S.year=data.year;S.sc=data.state;S.maxV=parseInt(data.maxV,10)||0;
   S.tpl=Array.isArray(data.tpl)?data.tpl.slice():[];
   S.tplF=Array.isArray(data.tplF)?data.tplF.slice():[];
@@ -667,7 +670,9 @@ function init(){
     var l=document.createElement('label');l.textContent=day.label;l.setAttribute('for','tpl-'+i);
     var s=document.createElement('select');s.id='tpl-'+i;
     OCCUPANCY_OPTIONS.forEach(function(o){var op=document.createElement('option');op.value=o.value;op.textContent=o.label+' ('+o.percent+'%)';s.appendChild(op);});
-    s.value=day.def;w.appendChild(l);w.appendChild(s);tG.appendChild(w);
+    s.value=day.def;s.dataset.occ=day.def;
+    s.addEventListener('change',function(){this.dataset.occ=this.value;});
+    w.appendChild(l);w.appendChild(s);tG.appendChild(w);
   });
 
   /* ferien template */
@@ -677,7 +682,9 @@ function init(){
     var l=document.createElement('label');l.textContent=day.label;l.setAttribute('for','tplF-'+i);
     var s=document.createElement('select');s.id='tplF-'+i;
     OCCUPANCY_OPTIONS.forEach(function(o){var op=document.createElement('option');op.value=o.value;op.textContent=o.label+' ('+o.percent+'%)';s.appendChild(op);});
-    s.value=day.defF;w.appendChild(l);w.appendChild(s);tGF.appendChild(w);
+    s.value=day.defF;s.dataset.occ=day.defF;
+    s.addEventListener('change',function(){this.dataset.occ=this.value;});
+    w.appendChild(l);w.appendChild(s);tGF.appendChild(w);
   });
 
   loadGlobal();
@@ -703,7 +710,7 @@ function init(){
     var prefix=bar.dataset.target;
     bar.addEventListener('click',function(e){
       var val=e.target.dataset&&e.target.dataset.bulk;if(!val)return;
-      for(var i=0;i<7;i++){var el=document.getElementById(prefix+'-'+i);if(el)el.value=val;}
+      for(var i=0;i<7;i++){var el=document.getElementById(prefix+'-'+i);if(el){el.value=val;el.dataset.occ=val;}}
     });
   });
   updateSaveVisibility();

@@ -284,6 +284,26 @@ section h2 { font-size: 1.3rem; }
   font-size: 0.72rem;
   padding: 4px 10px;
 }
+.template-bulk button[data-bulk="Close"]  { background: var(--close); }
+.template-bulk button[data-bulk="Close"]:hover { background: #dc2626; }
+.template-bulk button[data-bulk="Off"]    { background: var(--off); }
+.template-bulk button[data-bulk="Off"]:hover { background: #6b7280; }
+.template-bulk button[data-bulk="Low"]    { background: var(--low); }
+.template-bulk button[data-bulk="Low"]:hover { background: #3b82f6; }
+.template-bulk button[data-bulk="Medium"] { background: var(--medium); }
+.template-bulk button[data-bulk="Medium"]:hover { background: #10b981; }
+.template-bulk button[data-bulk="High"]   { background: var(--high); }
+.template-bulk button[data-bulk="High"]:hover { background: #d97706; }
+.template-bulk button[data-bulk="Peak"]   { background: var(--peak); }
+.template-bulk button[data-bulk="Peak"]:hover { background: #db2777; }
+
+.tpl-day select[data-occ="Close"]  { color: var(--close); border-color: var(--close); }
+.tpl-day select[data-occ="Off"]    { color: var(--off); border-color: var(--off); }
+.tpl-day select[data-occ="Low"]    { color: var(--low); border-color: var(--low); }
+.tpl-day select[data-occ="Medium"] { color: var(--medium); border-color: var(--medium); }
+.tpl-day select[data-occ="High"]   { color: var(--high); border-color: var(--high); }
+.tpl-day select[data-occ="Peak"]   { color: var(--peak); border-color: var(--peak); }
+.tpl-day select { font-weight: 700; }
 
 @media (max-width: 900px) {
   .form-row { flex-direction: column; }
@@ -542,7 +562,7 @@ button:disabled { background: #9ca3af; cursor: not-allowed; }
 .sw-weekend { background: var(--weekend); }
 .sw-holiday { background: var(--holiday); }
 .sw-school { background: var(--school); }
-.sw-off-season { background: #f3f4f6; }
+.sw-off-season { background: #cbd5e1; }
 
 /* Table */
 .table-card { padding: 0; overflow: hidden; }
@@ -578,7 +598,7 @@ button:disabled { background: #9ca3af; cursor: not-allowed; }
 #dayTable tbody tr.holiday.school-holiday {
   background: linear-gradient(90deg, var(--holiday) 50%, var(--school) 50%);
 }
-#dayTable tbody tr.off-season     { background: #f3f4f6; color: var(--text-muted); }
+#dayTable tbody tr.off-season     { background: #cbd5e1; color: var(--text-muted); }
 #dayTable tbody tr.off-season .visitors-cell,
 #dayTable tbody tr.off-season .revenue-cell { color: var(--text-muted); }
 #dayTable tbody tr.month-header td {
@@ -653,12 +673,46 @@ button:disabled { background: #9ca3af; cursor: not-allowed; }
 }
 
 footer {
-  max-width: 1600px;
-  margin: 24px auto 0;
-  text-align: center;
-  color: var(--text-muted);
+  max-width: 100%;
+  margin: 32px 0 0;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: rgba(255,255,255,0.9);
   font-size: 0.85rem;
-  padding: 14px 0;
+  padding: 0;
+}
+.footer-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  text-align: center;
+}
+.footer-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+}
+.footer-privacy {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.85);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.footer-links {
+  font-size: 0.82rem;
+}
+.footer-links a {
+  color: rgba(255,255,255,0.95);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.4);
+}
+.footer-links a:hover {
+  color: white;
+  text-decoration-color: white;
+}
+.footer-sep {
+  margin: 0 8px;
+  opacity: 0.6;
 }
 
 /* Responsive */
